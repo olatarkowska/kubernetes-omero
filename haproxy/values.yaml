@@ -1,0 +1,62 @@
+# Default values for haproxy.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: library/haproxy
+  tag: 1.8.14
+  # tag: 1.8.14-alpine
+  pullPolicy: IfNotPresent
+
+dnsmasq:
+  image:
+    repository: andyshinn/dnsmasq
+    tag: 2.78
+    pullPolicy: IfNotPresent
+  resources: {}
+
+log:
+  image:
+    repository: manics/rsyslog-stdout
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources: {}
+
+
+nameOverride: ""
+fullnameOverride: ""
+
+
+# Default timeouts
+timeout:
+  connect: 5000
+  client: 50000
+  server: 50000
+
+services: []
+# - name: optional, defaults to same as service
+#   externalPort: optional, defaults to same as port
+#   mode: tcp or http
+#   bindOpts: optional frontend bind options
+#   frontParams: list of optional additional frontend configuration lines
+#   service: Kubernetes service full DNS name (required due to how haproxy resolves FQDNs)
+#   port: Kubernetes service port
+#   balance: roundrobin, static-rr, leastconn, source
+#   backParams: list of optional additional backend configuration lines
+#   serverOpts: optional backend server options
+#   timeout:
+#     connect: optionally override defaults
+#     client: optionally override defaults
+#     server: optionally override defaults
+
+
+service:
+  type: ClusterIP
+  loadBalancerIP:
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

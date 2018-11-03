@@ -1,0 +1,78 @@
+#https://github.com/haproxytech/haproxy/tree/master/blog/haproxy_docker_dns_link
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ include "haproxy.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "haproxy.name" . }}
+    helm.sh/chart: {{ include "haproxy.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  haproxy.cfg: |
+    global
+      log 127.0.0.1 local0
+      log 127.0.0.1 local1 notice
+      #user { haproxy_user }
+      #group { haproxy_group }
+      daemon
+
+    resolvers docker
+      nameserver dnsmasq 127.0.0.1:10053
+      resolve_retries 3
+      timeout retry 1s
+      hold valid 3s
+
+    defaults
+      log global
+      mode http
+      option httplog
+      option dontlognull
+      timeout connect {{ .Values.timeout.connect }}
+      timeout client {{ .Values.timeout.client }}
+      timeout server {{ .Values.timeout.server }}
+
+  {{- range .Values.services }}
+    {{- $mode := .mode | default "http" }}
+    {{- $name := .name | default (.service | required "Backend service required") }}
+    frontend f_{{ $name }}
+      bind :{{ .externalPort | default (.port) }} {{ .bindOpts }}
+      mode {{ .mode | default "http" }}
+      default_backend b_{{ $name }}
+    {{- range .frontParams }}
+      {{ . }}
+    {{- end }}
+    {{- if (contains "tcp" .mode) }}
+      option tcplog
+    {{- end}}
+    {{- with .timeout }}
+      {{- if .timeout.client }}
+      timeout client {{ .timeout.client }}
+      {{- end }}
+    {{- end }}
+
+    backend b_{{ $name }}
+      mode {{ .mode | default "http" }}
+      balance {{ .balance | default "source" }}
+    {{- range .backParams }}
+      {{ . }}
+    {{- end }}
+    {{- if (contains "tcp" .mode) }}
+      option tcplog
+    {{- end }}
+      server {{ $name }} {{ .service | required "Backend service required" }}:{{ .port | required "Backend port required" }} check resolvers docker resolve-prefer ipv4 {{ .serverOpts }}
+    {{- with .timeout }}
+      {{- if .timeout.connect }}
+      timeout connect {{ .timeout.connect }}
+      {{- end }}
+      {{- if .timeout.server }}
+      timeout server {{ .timeout.server }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+
+    listen stats
+      bind :9000
+      mode http
+      stats enable
+      stats uri /stats
